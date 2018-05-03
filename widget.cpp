@@ -5,7 +5,12 @@
 #include<QDataStream>
 #include<QMessageBox>
 #include<QScrollBar>
-
+#include<QDateTime>
+#include<QTableWidgetItem>
+#include<QNetworkInterface>
+#include<QProcess>
+#include<QStringList>
+#include<QList>
 Widget::Widget(QWidget *parent) :
     QWidget(parent),
     ui(new Ui::Widget)
@@ -27,6 +32,9 @@ Widget::~Widget()
 {
     delete ui;
 }
+
+//使用UDP广播发送消息，MessageType是指头文件中的枚举数据类型
+//sendMessage即把本机的主机名，用户名+消息内容+IP地址再广播出去
 void Widget::sendMessage(MessageType type, QString serverAddress)
 {
     QByteArray data;//字节数组
@@ -56,13 +64,136 @@ void Widget::sendMessage(MessageType type, QString serverAddress)
         break;
     case Refuse:
         break;
-    default:
-        break;
     }
+    udpSocket->writeDatagram(data,data.length(),QHostAddress::Broadcast,port);
+    //将data中的数据发送，QHostAddress::Broadcast是广播发送
+}
+
+//接收UDP信息
+void Widget::processPendingDatagrams()
+{
+    while(udpSocket->hasPendingDatagrams())
+    {
+        QByteArray datagram;
+        datagram.resize(udpSocket->pendingDatagramSize());//把datagram的大小设置为接受到的数据报的大小
+        udpSocket->readDatagram(datagram.data(),datagram.size());
+        QDataStream in(&datagram,QIODevice::ReadOnly);//输入，设置只读属性
+        int messageType;
+        in>>messageType;//读取1个32位长度的整型数据到messageType中
+        QString userName,localHostName,ipAddress,message;
+        QString time=QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
+
+        switch (messageType) {
+        case Message:
+            in>>userName>>localHostName>>ipAddress>>message;//in>>后面如果为QString，则表示读取一个直到‘\0’的字符串
+            ui->textBrowser->setTextColor(Qt::blue);//设置文本颜色
+            ui->textBrowser->setCurrentFont(QFont("Times New Roman",12));
+            ui->textBrowser->append("["+localHostName+"]"+time);
+            ui->textBrowser->append(message);//消息输出
+            break;
+        case NewParticipant:
+            in>>userName>>localHostName>>ipAddress;
+            newParticipant(userName,localHostName,ipAddress);//新用户加入
+            break;
+        case ParticipantLeft:
+            in>>userName>>localHostName;
+            participantLeft(userName,localHostName,time);
+
+            break;
+        case FileName:
+            break;
+        case Refuse:
+            break;
+        }
+
+    }
+}
+
+//处理新用户
+void Widget::newParticipant(QString userName,QString localHostName,QString ipAddress)
+{
+    //看是否是新用户，找一找列表里面是否有重复
+    bool isEmpty=ui->tableWidget->findItems(localHostName,Qt::MatchExactly).isEmpty();
+    //此处的findItems表示找到与内容localHostName匹配的item
+    if(isEmpty)
+    {
+        //新建3个小的item，分别为user,host,ip
+        QTableWidgetItem *user=new QTableWidgetItem(userName);
+        QTableWidgetItem *host=new QTableWidgetItem(localHostName);
+        QTableWidgetItem *ip=new QTableWidgetItem(ipAddress);
+
+        ui->tableWidget->insertRow(0);//把新来的用户放在最上面
+        ui->tableWidget->setItem(0,0,user);
+        ui->tableWidget->setItem(0,1,host);
+        ui->tableWidget->setItem(0,2,ip);
+
+        ui->textBrowser->setTextColor(Qt::gray);//????这是设置什么的颜色
+        ui->textBrowser->setCurrentFont(QFont("Times New Roman",10));
+        ui->textBrowser->append(tr("%1在线！").arg(userName));
+        ui->label_num->setText(tr("在线人数：%1").arg(ui->tableWidget->rowCount()));
+        sendMessage(NewParticipant);//该句的功能是让新来的用户也能收到其他在线用户的信息，可以
+        //更新自己的好友列表      
+    }
+}
+//处理用户离开
+void Widget::participantLeft(QString userName, QString localHostName, QString time)
+{
+    //找到第一个对应的主机名
+    int rowNum=ui->tableWidget->findItems(localHostName,Qt::MatchExactly).first()->row();
+    ui->tableWidget->removeRow(rowNum);//移除，此句执行完后，rowcount()内容自动减1
+    ui->textBrowser->setTextColor(Qt::gray);
+    ui->textBrowser->setCurrentFont(QFont("Times New Roman",10));
+    ui->textBrowser->append(tr("%1于%2离开！").arg(userName).arg(time));
+    ui->textBrowser->setText(tr("在线人数:%1").arg(ui->tableWidget->rowCount()));
+}
+//获取ip地址，获取本机ip地址（其协议为ipv4的ip地址）
+QString Widget::getIP()
+{
+    QList<QHostAddress> list=QNetworkInterface::allAddresses();//此处包含所有的ipv4和ipv6的地址
+    foreach(QHostAddress address,list)
+    {
+        if(address.protocol()==QAbstractSocket::IPv4Protocol)
+            return address.toString();
+    }
+    return 0;
+}
+
+
+//获取用户名????
+QString Widget::getUserName()
+{
+    QStringList envVariables;
+    //将这5个环境变量存入到envVariables
+    envVariables << "USERNAME.*" << "USER.*" << "USERDOMAIN.*"
+                     << "HOSTNAME.*" << "DOMAINNAME.*";
+    //系统中关于环境变量的信息存在environment中
+    QStringList environment=QProcess::systemEnvironment();
+    foreach(QString string,envVariables)
+    {
+        int index=environment.indexOf(QRegExp(string));
+        if(index!=-1)
+        {
+            QStringList stringList=environment.at(index).split('=');
+            if(stringList.size()==2)
+            {
+                return stringList.at(1);//at(0)为文字"USERNAME."，at(1)为用户名
+                break;
+            }
+        }
+    }
+    return "unknown";
+}
+//获得,要发送的消息，放在socket中发出去
+QString Widget::getMessage()
+{
+    QString msg=ui->textEdit->toHtml();//转成html语言发送
+    ui->textEdit->clear();//清空输入框
+    ui->textEdit->setFocus();//重新设置光标输入焦点
+    return msg;
 
 }
 
 void Widget::on_pushButton_send_clicked()
 {
-    
+    sendMessage(Message);
 }

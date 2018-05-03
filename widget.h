@@ -11,7 +11,8 @@ enum MessageType //枚举变量标志信息的类型
     NewParticipant,//新用户加入
     ParticipantLeft,//用户退出
     FileName,//文件名
-    Refuse};//拒绝接受文件
+    Refuse
+};//拒绝接受文件
 class Widget : public QWidget
 {
     Q_OBJECT
@@ -20,9 +21,8 @@ public:
     explicit Widget(QWidget *parent = 0);
     ~Widget();
 protected:
-    void NewParticipant(QString userName,
-                        QString localHostName,QString ipAddress);//处理新用户
-    void ParticipantLeft(QString userName,QString localHostName,QString time);//用户离开
+    void newParticipant(QString userName,QString localHostName,QString ipAddress);//处理新用户
+    void participantLeft(QString userName,QString localHostName,QString time);//用户离开
    
     void sendMessage(MessageType type,QString serverAddress="");//发送广播消息
     

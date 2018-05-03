@@ -290,7 +290,7 @@
     <widget class="QWidget" name="widget_3" native="true">
      <layout class="QHBoxLayout" name="horizontalLayout_3">
       <item>
-       <widget class="QLabel" name="label">
+       <widget class="QLabel" name="label_num">
         <property name="text">
          <string>在线用户：0人</string>
         </property>
