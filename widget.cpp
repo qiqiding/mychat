@@ -11,6 +11,9 @@
 #include<QProcess>
 #include<QStringList>
 #include<QList>
+#include<tcpserver.h>
+#include<tcpclient.h>
+#include<QFileDialog>
 Widget::Widget(QWidget *parent) :
     QWidget(parent),
     ui(new Ui::Widget)
@@ -25,6 +28,10 @@ Widget::Widget(QWidget *parent) :
     connect(udpSocket,SIGNAL(readyRead()),this,SLOT(processPendingDatagrams()));
             //在接口里有信息时，立马处理
     sendMessage(NewParticipant);//打开此软件，就说明是新用户加入，所以发射新用户加入广播
+    //TcpServer是tcpserver.ui对应的类，上面直接用QUdpSocket是因为没有单独的udpserver.ui类
+        server = new TcpServer(this);
+        //sendFileName()函数一发送，则触发槽函数getFileName()
+        connect(server, SIGNAL(sendFileName(QString)), this, SLOT(getFileName(QString)));
 
 }
 
@@ -60,9 +67,16 @@ void Widget::sendMessage(MessageType type, QString serverAddress)
         break;
     case ParticipantLeft:
         break;
-    case FileName:
+    case FileName:{
+        int row = ui->tableWidget->currentRow();//必须选中需要发送的给谁才可以发送
+        QString clientAddress = ui->tableWidget->item(row, 2)->text();//（row,,2）为ip地址
+        out << address << clientAddress << fileName;//发送本地ip，对方ip，所发送的文件名
         break;
+    }
+
     case Refuse:
+        out << serverAddress;
+
         break;
     }
     udpSocket->writeDatagram(data,data.length(),QHostAddress::Broadcast,port);
@@ -100,10 +114,27 @@ void Widget::processPendingDatagrams()
             participantLeft(userName,localHostName,time);
 
             break;
-        case FileName:
+        case FileName:{
+            in >> userName >> localHostName >> ipAddress;
+            QString clientAddress, fileName;
+            in >> clientAddress >> fileName;
+            hasPendingFile(userName, ipAddress, clientAddress, fileName);
             break;
-        case Refuse:
+        }
+
+        case Refuse:{
+            in >> userName >> localHostName;
+            QString serverAddress;
+            in >> serverAddress;
+            QString ipAddress = getIP();
+
+            if(ipAddress == serverAddress)
+            {
+                server->refused();
+            }
             break;
+        }
+
         }
 
     }
@@ -193,7 +224,52 @@ QString Widget::getMessage()
 
 }
 
+//发送信息
 void Widget::on_pushButton_send_clicked()
 {
     sendMessage(Message);
+}
+// 获取要发送的文件名
+void Widget::getFileName(QString name)
+{
+    fileName = name;
+    sendMessage(FileName);
+}
+//传输文件按钮
+void Widget::on_toolButton_sendfile_clicked()
+{
+    if(ui->tableWidget->selectedItems().isEmpty())//传送文件前需选择用户
+        {
+            QMessageBox::warning(0, tr("选择用户"),
+                           tr("请先从用户列表选择要传送的用户！"), QMessageBox::Ok);
+            return;
+        }
+        server->show();
+        server->initServer();
+
+}
+// 是否接收文件，客户端的显示
+void Widget::hasPendingFile(QString userName, QString serverAddress,
+                            QString clientAddress, QString fileName)
+{
+    QString ipAddress = getIP();
+    if(ipAddress == clientAddress)
+    {
+        int btn = QMessageBox::information(this,tr("接受文件"),
+                                           tr("来自%1(%2)的文件：%3,是否接收？")
+                                           .arg(userName).arg(serverAddress).arg(fileName),
+                                           QMessageBox::Yes,QMessageBox::No);//弹出一个窗口
+        if (btn == QMessageBox::Yes) {
+            QString name = QFileDialog::getSaveFileName(0,tr("保存文件"),fileName);//name为另存为的文件名
+            if(!name.isEmpty())
+            {
+                TcpClient *client = new TcpClient(this);
+                client->setFileName(name);    //客户端设置文件名
+                client->setHostAddress(QHostAddress(serverAddress));    //客户端设置服务器地址
+                client->show();
+            }
+        } else {
+            sendMessage(Refuse, serverAddress);
+        }
+    }
 }
