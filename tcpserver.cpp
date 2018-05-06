@@ -13,15 +13,15 @@ TcpServer::TcpServer(QWidget *parent) :
     ui(new Ui::TcpServer)
 {
     ui->setupUi(this);
-
+    setWindowTitle(tr("发送"));
     setFixedSize(350,180);    //初始化时窗口显示固定大小
 
-        tcpPort = 6666;        //tcp通信端口
-        tcpServer = new QTcpServer(this);
+     tcpPort = 6666;        //tcp通信端口
+     tcpServer = new QTcpServer(this);
         //newConnection表示当tcp有新连接时就发送信号
-        connect(tcpServer, SIGNAL(newConnection()), this, SLOT(sendMessage()));
+     connect(tcpServer, SIGNAL(newConnection()), this, SLOT(sendMessage()));
 
-        initServer();
+     initServer();
 
 }
 
@@ -32,7 +32,7 @@ TcpServer::~TcpServer()
 // 初始化
 void TcpServer::initServer()
 {
-    payloadSize = 64*1024;
+    payloadSize = 64*1024;//64KB
     TotalBytes = 0;
     bytesWritten = 0;
     bytesToWrite = 0;
@@ -42,7 +42,7 @@ void TcpServer::initServer()
     ui->serverOpenBtn->setEnabled(true);//open按钮可用
     ui->serverSendBtn->setEnabled(false);//发送按钮不可用
 
-    tcpServer->close();//tcp传送文件窗口不显示
+    tcpServer->close();//关闭服务器
 }
 
 // 开始发送数据
@@ -53,41 +53,35 @@ void TcpServer::sendMessage()    //是connect中的槽函数
     //bytesWritten为qint64类型，即长整型
     connect(clientConnection, SIGNAL(bytesWritten(qint64)),    //?
             this, SLOT(updateClientProgress(qint64)));
-
     ui->serverStatusLabel->setText(tr("开始传送文件 %1 ！").arg(theFileName));
-
     localFile = new QFile(fileName);    //localFile代表的是文件内容本身
-    if(!localFile->open((QFile::ReadOnly))){
-        QMessageBox::warning(this, tr("应用程序"), tr("无法读取文件 %1:\n%2")
-                             .arg(fileName).arg(localFile->errorString()));//errorString是系统自带的信息
+    if(!localFile->open((QFile::ReadOnly)))//以只读的方式打开文件
+    {
+        QMessageBox::warning(this, tr("应用程序"), tr("无法读取文件 %1:\n%2").arg(fileName).arg(localFile->errorString()));//errorString是系统自带的信息
         return;
     }
-    TotalBytes = localFile->size();//文件总大小
-    //头文件中的定义QByteArray outBlock;
-    QDataStream sendOut(&outBlock, QIODevice::WriteOnly);//设置输出流属性
-    sendOut.setVersion(QDataStream::Qt_4_7);//设置Qt版本，不同版本的数据流格式不同
+    TotalBytes = localFile->size();//获取文件总大小
+    QDataStream sendOut(&outBlock, QIODevice::WriteOnly);//设置输出流属性，将发送缓冲区outblock封装在一个QDataStream
+    sendOut.setVersion(QDataStream::Qt_5_5);//设置Qt版本，不同版本的数据流格式不同
     time.start();  // 开始计时
-    QString currentFile = fileName.right(fileName.size()    //currentFile代表所选文件的文件名
-                                         - fileName.lastIndexOf('/')-1);
+    QString currentFile = fileName.right(fileName.size()-fileName.lastIndexOf('/')-1);//通过QString类的right()函数去掉文件的路径部分
+    //仅仅将文件部分保存在currentFile
     //qint64(0)表示将0转换成qint64类型,与(qint64)0等价
     //如果是，则此处为依次写入总大小信息空间，文件名大小信息空间，文件名
     sendOut << qint64(0) << qint64(0) << currentFile;
     TotalBytes += outBlock.size();//文件名大小等信息+实际文件大小
-    //sendOut.device()为返回io设备的当前设置，seek(0)表示设置当前pos为0
-    sendOut.device()->seek(0);//返回到outBlock的开始，执行覆盖操作
-    //发送总大小空间和文件名大小空间
-    sendOut << TotalBytes << qint64((outBlock.size() - sizeof(qint64)*2));
+    sendOut.device()->seek(0);//将读写操作指向从头开始
+    sendOut << TotalBytes << qint64((outBlock.size()-sizeof(qint64)*2));//填写实际的总长度和文件长度
     //qint64 bytesWritten;bytesToWrite表示还剩下的没发送完的数据
     //clientConnection->write(outBlock)为套接字将内容发送出去，返回实际发送出去的字节数
-    bytesToWrite = TotalBytes - clientConnection->write(outBlock);
-    outBlock.resize(0);//why??
+    bytesToWrite = TotalBytes-clientConnection->write(outBlock);//将该头文件发出，同时修改待发送字节数bytesToWrite
+    outBlock.resize(0);//清空缓存区以备下次使用
 }
 
 // 更新进度条，有数据发送时触发
 void TcpServer::updateClientProgress(qint64 numBytes)
 {
-    //qApp为指向一个应用对象的全局指针
-    qApp->processEvents();//processEvents为处理所有的事件？
+    qApp->processEvents();//用于传输大文件时使界面不会冻结
     bytesWritten += (int)numBytes;
     if (bytesToWrite > 0) {    //没发送完毕
         //初始化时payloadSize = 64*1024;qMin为返回参数中较小的值，每次最多发送64K的大小
@@ -117,6 +111,7 @@ void TcpServer::updateClientProgress(qint64 numBytes)
     }
 }
 
+//打开按钮
 void TcpServer::on_serverOpenBtn_clicked()
 {
     //QString fileName;QFileDialog是一个提供给用户选择文件或目录的对话框
@@ -124,16 +119,17 @@ void TcpServer::on_serverOpenBtn_clicked()
         if(!fileName.isEmpty())
         {
             //fileName.right为返回filename最右边参数大小个字文件名，theFileName为所选真正的文件名
-            theFileName = fileName.right(fileName.size() - fileName.lastIndexOf('/')-1);
+            theFileName = fileName.right(fileName.size()-fileName.lastIndexOf('/')-1);
             ui->serverStatusLabel->setText(tr("要传送的文件为：%1 ").arg(theFileName));
             ui->serverSendBtn->setEnabled(true);//发送按钮可用
             ui->serverOpenBtn->setEnabled(false);//open按钮禁用
         }
 
 }
-
+//发送按钮（开始监听）
 void TcpServer::on_serverSendBtn_clicked()
 {
+    //单击“发送”按钮后，将服务器设置为监听状态，然后发送sendFileName()信号，在主界面类中将关联该信号并使用UDP广播将文件名发送给接收端
     //tcpServer->listen函数如果监听到有连接，则返回1，否则返回0
         if(!tcpServer->listen(QHostAddress::Any,tcpPort))//开始监听6666端口
         {
@@ -144,18 +140,16 @@ void TcpServer::on_serverSendBtn_clicked()
 
         ui->serverStatusLabel->setText(tr("等待对方接收... ..."));
         emit sendFileName(theFileName);//发送已传送文件的信号，在widget.cpp构造函数中的connect()触发槽函数
-
 }
-
+//关闭按钮，服务器的关闭按钮
 void TcpServer::on_serverCloseBtn_clicked()
 {
-    if(tcpServer->isListening())
-        {
-            //当tcp正在监听时，关闭tcp服务器端应用，即按下close键时就不监听tcp请求了
+    if(tcpServer->isListening())//当tcp正在监听时，关闭tcp服务器端应用，即按下close键时就不监听tcp请求了
+        {      
             tcpServer->close();
             if (localFile->isOpen())//如果所选择的文件已经打开，则关闭掉
                 localFile->close();
-            clientConnection->abort();//clientConnection为下一个连接？怎么理解
+            clientConnection->abort();//clientConnection关掉
         }
         close();//关闭本ui，即本对话框
 }

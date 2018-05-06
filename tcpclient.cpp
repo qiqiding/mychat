@@ -8,14 +8,14 @@ TcpClient::TcpClient(QWidget *parent) :
     ui->setupUi(this);
     setFixedSize(350,180);
 
-        TotalBytes = 0;
-        bytesReceived = 0;
-        fileNameSize = 0;
+    TotalBytes = 0;
+    bytesReceived = 0;
+    fileNameSize = 0;
 
-        tcpClient = new QTcpSocket(this);
-        tcpPort = 6666;
-        connect(tcpClient, SIGNAL(readyRead()), this, SLOT(readMessage()));
-        connect(tcpClient, SIGNAL(error(QAbstractSocket::SocketError)), this,
+    tcpClient = new QTcpSocket(this);
+    tcpPort = 6666;
+    connect(tcpClient, SIGNAL(readyRead()), this, SLOT(readMessage()));
+    connect(tcpClient, SIGNAL(error(QAbstractSocket::SocketError)), this,
                 SLOT(displayError(QAbstractSocket::SocketError)));
 
 }
@@ -37,7 +37,7 @@ void TcpClient::setHostAddress(QHostAddress address)
     newConnect();
 }
 
-// 创建新连接
+// 与服务器进行连接
 void TcpClient::newConnect()
 {
     blockSize = 0;
@@ -50,14 +50,14 @@ void TcpClient::newConnect()
 void TcpClient::readMessage()
 {
     QDataStream in(tcpClient);    //这里的QDataStream可以直接用QTcpSocket对象做参数
-    in.setVersion(QDataStream::Qt_4_7);
+    in.setVersion(QDataStream::Qt_5_5);
 
     float useTime = time.elapsed();
 
     if (bytesReceived <= sizeof(qint64)*2) {    //说明刚开始接受数据
-        if ((tcpClient->bytesAvailable()    //bytesAvailable为返回将要被读取的字节数
-             >= sizeof(qint64)*2) && (fileNameSize == 0))
+        if ((tcpClient->bytesAvailable()>= sizeof(qint64)*2) && (fileNameSize == 0))
         {
+             //bytesAvailable为返回将要被读取的字节数
             //接受数据总大小信息和文件名大小信息
             in>>TotalBytes>>fileNameSize;
             bytesReceived += sizeof(qint64)*2;
@@ -114,14 +114,14 @@ void TcpClient::displayError(QAbstractSocket::SocketError socketError)
     default : qDebug() << tcpClient->errorString();
     }
 }
-
+//取消按钮
 void TcpClient::on_tcpClientCancleBtn_clicked()
 {
     tcpClient->abort();
         if (localFile->isOpen())
             localFile->close();
 }
-
+//关闭按钮
 void TcpClient::on_tcpClientCloseBtn_clicked()
 {
     tcpClient->abort();

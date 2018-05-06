@@ -14,11 +14,22 @@
 #include<tcpserver.h>
 #include<tcpclient.h>
 #include<QFileDialog>
+#include<QColorDialog>
+#include<QFont>
+#include<QKeyEvent>
+#include<chat.h>
 Widget::Widget(QWidget *parent) :
     QWidget(parent),
     ui(new Ui::Widget)
 {
     ui->setupUi(this);
+    ui->textEdit->setFocusPolicy(Qt::StrongFocus);
+    ui->textBrowser->setFocusPolicy(Qt::NoFocus);
+    ui->textEdit->setFocus();
+    ui->textEdit->installEventFilter(this);//设置完后自动调用其eventFilter函数
+
+    ui->tableWidget->setEditTriggers(QAbstractItemView::NoEditTriggers);//设置tablewidget不可以编辑
+
     udpSocket=new QUdpSocket(this);
     port=45454;
     udpSocket->bind(port,QUdpSocket::ShareAddress|QUdpSocket::ReuseAddressHint);
@@ -29,9 +40,12 @@ Widget::Widget(QWidget *parent) :
             //在接口里有信息时，立马处理
     sendMessage(NewParticipant);//打开此软件，就说明是新用户加入，所以发射新用户加入广播
     //TcpServer是tcpserver.ui对应的类，上面直接用QUdpSocket是因为没有单独的udpserver.ui类
-        server = new TcpServer(this);
+    server = new TcpServer(this);
         //sendFileName()函数一发送，则触发槽函数getFileName()
-        connect(server, SIGNAL(sendFileName(QString)), this, SLOT(getFileName(QString)));
+    connect(server, SIGNAL(sendFileName(QString)), this, SLOT(getFileName(QString)));
+
+    connect(ui->textEdit,SIGNAL(currentCharFormatChanged(QTextCharFormat)),this,SLOT(curFmtChanged(const QTextCharFormat)));
+            //使得光标在不同格式的文本上单击时可以使得编辑器自动切换为对应的格式
 
 }
 
@@ -39,6 +53,7 @@ Widget::~Widget()
 {
     delete ui;
 }
+
 
 //使用UDP广播发送消息，MessageType是指头文件中的枚举数据类型
 //sendMessage即把本机的主机名，用户名+消息内容+IP地址再广播出去
@@ -69,14 +84,13 @@ void Widget::sendMessage(MessageType type, QString serverAddress)
         break;
     case FileName:{
         int row = ui->tableWidget->currentRow();//必须选中需要发送的给谁才可以发送
-        QString clientAddress = ui->tableWidget->item(row, 2)->text();//（row,,2）为ip地址
+        QString clientAddress = ui->tableWidget->item(row,2)->text();//（row,,2）为ip地址
         out << address << clientAddress << fileName;//发送本地ip，对方ip，所发送的文件名
         break;
     }
 
     case Refuse:
         out << serverAddress;
-
         break;
     }
     udpSocket->writeDatagram(data,data.length(),QHostAddress::Broadcast,port);
@@ -118,7 +132,7 @@ void Widget::processPendingDatagrams()
             in >> userName >> localHostName >> ipAddress;
             QString clientAddress, fileName;
             in >> clientAddress >> fileName;
-            hasPendingFile(userName, ipAddress, clientAddress, fileName);
+            hasPendingFile(userName, ipAddress, clientAddress, fileName);//判断是否要接受该文件
             break;
         }
 
@@ -132,6 +146,11 @@ void Widget::processPendingDatagrams()
             {
                 server->refused();
             }
+            break;
+        }
+        case xchat:{
+            in>>userName>>localHostName>>ipAddress;
+            showxchat(localHostName,ipAddress);//显示与主机名聊天中，不是用户名
             break;
         }
 
@@ -158,7 +177,7 @@ void Widget::newParticipant(QString userName,QString localHostName,QString ipAdd
         ui->tableWidget->setItem(0,1,host);
         ui->tableWidget->setItem(0,2,ip);
 
-        ui->textBrowser->setTextColor(Qt::gray);//????这是设置什么的颜色
+        ui->textBrowser->setTextColor(Qt::gray);//这是设置上面字体的颜色
         ui->textBrowser->setCurrentFont(QFont("Times New Roman",10));
         ui->textBrowser->append(tr("%1在线！").arg(userName));
         ui->label_num->setText(tr("在线人数：%1").arg(ui->tableWidget->rowCount()));
@@ -175,7 +194,8 @@ void Widget::participantLeft(QString userName, QString localHostName, QString ti
     ui->textBrowser->setTextColor(Qt::gray);
     ui->textBrowser->setCurrentFont(QFont("Times New Roman",10));
     ui->textBrowser->append(tr("%1于%2离开！").arg(userName).arg(time));
-    ui->textBrowser->setText(tr("在线人数:%1").arg(ui->tableWidget->rowCount()));
+    //ui->textBrowser->setText(tr("在线人数:%1").arg(ui->tableWidget->rowCount()));
+    ui->label_num->setText(tr("在线人数:%1").arg(ui->tableWidget->rowCount()));
 }
 //获取ip地址，获取本机ip地址（其协议为ipv4的ip地址）
 QString Widget::getIP()
@@ -268,8 +288,165 @@ void Widget::hasPendingFile(QString userName, QString serverAddress,
                 client->setHostAddress(QHostAddress(serverAddress));    //客户端设置服务器地址
                 client->show();
             }
-        } else {
+        } else {//如果拒绝接收，则发送拒绝消息的广播
             sendMessage(Refuse, serverAddress);
         }
+    }
+}
+bool Widget::eventFilter(QObject *target, QEvent *event)
+{
+    if(target==ui->textEdit)
+    {
+        if(event->type()==QEvent::KeyPress)//回车键
+        {
+            QKeyEvent *k=static_cast<QKeyEvent *>(event);
+            if(k->key()==Qt::Key_Return)
+            {
+                on_pushButton_send_clicked();
+                return true;
+            }
+        }
+    }
+    return QWidget::eventFilter(target,event);
+}
+
+
+//改变字体
+void Widget::on_fontComboBox_currentFontChanged(const QFont &f)
+{
+    ui->textEdit->setCurrentFont(f);
+    ui->textEdit->setFocus();
+}
+//更改字号
+void Widget::on_comboBox_fontsize_currentIndexChanged(const QString &arg1)
+{
+    ui->textEdit->setFontPointSize(arg1.toDouble());
+    ui->textEdit->setFocus();
+}
+//加粗
+void Widget::on_toolButton_bold_clicked(bool checked)
+{
+    if(checked)
+        ui->textEdit->setFontWeight(QFont::Bold);
+    else
+        ui->textEdit->setFontWeight(QFont::Normal);
+    ui->textEdit->setFocus();
+}
+//设置斜体
+void Widget::on_toolButton_italic_clicked(bool checked)
+{
+    ui->textEdit->setFontItalic(checked);
+    ui->textEdit->setFocus();
+}
+//设置下划线
+void Widget::on_toolButton_underline_clicked(bool checked)
+{
+    ui->textEdit->setFontUnderline(checked);
+    ui->textEdit->setFocus();
+}
+//设置文本颜色
+void Widget::on_toolButton_color_clicked()
+{
+    color=QColorDialog::getColor(color,this);
+    if(color.isValid())
+    {
+        ui->textEdit->setTextColor(color);
+        ui->textEdit->setFocus();
+    }
+}
+
+void Widget::curFmtChanged(const QTextCharFormat &fmt)
+{
+    ui->fontComboBox->setCurrentFont(fmt.font());//设置字体
+    if(fmt.fontPointSize()<8)//在这里最小的字体为8，如果字体大小出错，则使用12大小
+    {
+        ui->comboBox_fontsize->setCurrentIndex(4);
+    }else{
+        ui->comboBox_fontsize->setCurrentIndex(ui->comboBox_fontsize->findText(QString::number(fmt.fontPointSize())));
+    }
+    ui->toolButton_bold->setChecked(fmt.font().bold());//设置粗体
+    ui->toolButton_italic->setChecked(fmt.font().italic());//设置斜体
+    ui->toolButton_underline->setChecked(fmt.font().underline());//设置下划线
+    color=fmt.foreground().color();
+
+}
+//单击保存按钮
+void Widget::on_toolButton_save_clicked()
+{
+    if(ui->textBrowser->document()->isEmpty())
+    {
+        QMessageBox::warning(this,tr("警告"),tr("聊天记录为空！无法保存！"),QMessageBox::Ok);
+    }
+    else
+    {
+        QString fname=QFileDialog::getSaveFileName(this,tr("保存聊天记录"),tr("聊天记录"),tr("文本(*.txt);;所有文件(*.*)"));
+        if(!fname.isEmpty())
+            saveFile(fname);
+    }
+}
+
+//保存文件
+bool Widget::saveFile(const QString& filename)
+{
+    QFile file(filename);
+    if(!file.open(QFile::WriteOnly | QFile::Text))
+    {
+        QMessageBox::warning(this,tr("保存文件"),tr("无法保存文件%1:\n%2").arg(filename).arg(file.errorString()));
+        return false;
+    }
+    QTextStream out(&file);
+    out<<ui->textBrowser->toPlainText();
+    return true;
+}
+//清空
+void Widget::on_toolButton_clear_clicked()
+{
+    ui->textBrowser->clear();
+}
+//关闭
+void Widget::on_pushButton_close_clicked()
+{
+    close();
+}
+
+void Widget::closeEvent(QCloseEvent *e)
+{
+    sendMessage(ParticipantLeft);
+    QWidget::closeEvent(e);
+}
+
+void Widget::on_tableWidget_doubleClicked(const QModelIndex &index)//双击出现私聊窗口
+{
+
+   if(ui->tableWidget->item(index.row(),0)->text()==getUserName() &&
+            ui->tableWidget->item(index.row(),2)->text()==getIP())
+    {
+        QMessageBox::warning(this,tr("警告"),tr("你不可以和自己聊天！！！"),QMessageBox::Ok);
+    }
+    else{
+        if(!privatechat)
+        {
+            privatechat=new chat(ui->tableWidget->item(index.row(),1)->text(),//接收主机名
+                                 ui->tableWidget->item(index.row(),2)->text());//接收用户IP
+            QByteArray data;
+            QDataStream out(&data,QIODevice::WriteOnly);
+            QString localHostName = QHostInfo::localHostName();
+            QString address = getIP();
+            out << xchat << getUserName() << localHostName << address;//输入type=xchat
+            udpSocket->writeDatagram(data,data.length(),QHostAddress(ui->tableWidget->item(index.row(),2)->text()), port);//特定的IP地址，而不是之前的广播
+
+
+            privatechat->show();
+            privatechat->is_opened = true;
+
+        }
+    }
+}
+
+void Widget::showxchat(QString name, QString ip)
+{
+    if(!privatechat1)
+    {
+        privatechat1=new chat(name,ip);
     }
 }
