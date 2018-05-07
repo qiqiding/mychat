@@ -171,8 +171,8 @@
           <string>...</string>
          </property>
          <property name="icon">
-          <iconset resource="../../../chat2/resource.qrc">
-           <normaloff>:/image/textbold.png</normaloff>:/image/textbold.png</iconset>
+          <iconset resource="image/image.qrc">
+           <normaloff>:/textbold.png</normaloff>:/textbold.png</iconset>
          </property>
          <property name="iconSize">
           <size>
@@ -200,8 +200,8 @@
           <string>...</string>
          </property>
          <property name="icon">
-          <iconset resource="../../../chat2/resource.qrc">
-           <normaloff>:/image/textitalic.png</normaloff>:/image/textitalic.png</iconset>
+          <iconset resource="image/image.qrc">
+           <normaloff>:/textitalic.png</normaloff>:/textitalic.png</iconset>
          </property>
          <property name="iconSize">
           <size>
@@ -229,8 +229,8 @@
           <string>...</string>
          </property>
          <property name="icon">
-          <iconset resource="../../../chat2/resource.qrc">
-           <normaloff>:/image/textunder.png</normaloff>:/image/textunder.png</iconset>
+          <iconset resource="image/image.qrc">
+           <normaloff>:/textunder.png</normaloff>:/textunder.png</iconset>
          </property>
          <property name="iconSize">
           <size>
@@ -258,8 +258,8 @@
           <string>...</string>
          </property>
          <property name="icon">
-          <iconset resource="../../../chat2/resource.qrc">
-           <normaloff>:/image/textcolor.png</normaloff>:/image/textcolor.png</iconset>
+          <iconset resource="image/image.qrc">
+           <normaloff>:/textcolor.png</normaloff>:/textcolor.png</iconset>
          </property>
          <property name="iconSize">
           <size>
@@ -287,8 +287,8 @@
           <string>...</string>
          </property>
          <property name="icon">
-          <iconset resource="../../../chat2/resource.qrc">
-           <normaloff>:/image/fileopen.png</normaloff>:/image/fileopen.png</iconset>
+          <iconset resource="image/image.qrc">
+           <normaloff>:/fileopen.png</normaloff>:/fileopen.png</iconset>
          </property>
          <property name="iconSize">
           <size>
@@ -316,8 +316,8 @@
           <string>...</string>
          </property>
          <property name="icon">
-          <iconset resource="../../../chat2/resource.qrc">
-           <normaloff>:/image/Floppy.png</normaloff>:/image/Floppy.png</iconset>
+          <iconset resource="image/image.qrc">
+           <normaloff>:/Floppy.png</normaloff>:/Floppy.png</iconset>
          </property>
          <property name="iconSize">
           <size>
@@ -345,8 +345,8 @@
           <string>...</string>
          </property>
          <property name="icon">
-          <iconset resource="../../../chat2/resource.qrc">
-           <normaloff>:/image/Bin (empty).png</normaloff>:/image/Bin (empty).png</iconset>
+          <iconset resource="image/image.qrc">
+           <normaloff>:/Bin (empty).png</normaloff>:/Bin (empty).png</iconset>
          </property>
          <property name="iconSize">
           <size>
@@ -435,7 +435,7 @@ p, li { white-space: pre-wrap; }
   </layout>
  </widget>
  <resources>
-  <include location="../../../chat2/resource.qrc"/>
+  <include location="image/image.qrc"/>
  </resources>
  <connections/>
 </ui>

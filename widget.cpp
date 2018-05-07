@@ -30,6 +30,7 @@ Widget::Widget(QWidget *parent) :
 
     ui->tableWidget->setEditTriggers(QAbstractItemView::NoEditTriggers);//设置tablewidget不可以编辑
 
+    //UDP部分
     udpSocket=new QUdpSocket(this);
     port=45454;
     udpSocket->bind(port,QUdpSocket::ShareAddress|QUdpSocket::ReuseAddressHint);
@@ -40,6 +41,8 @@ Widget::Widget(QWidget *parent) :
             //在接口里有信息时，立马处理
     sendMessage(NewParticipant);//打开此软件，就说明是新用户加入，所以发射新用户加入广播
     //TcpServer是tcpserver.ui对应的类，上面直接用QUdpSocket是因为没有单独的udpserver.ui类
+
+    //TCP部分
     server = new TcpServer(this);
         //sendFileName()函数一发送，则触发槽函数getFileName()
     connect(server, SIGNAL(sendFileName(QString)), this, SLOT(getFileName(QString)));
@@ -53,7 +56,6 @@ Widget::~Widget()
 {
     delete ui;
 }
-
 
 //使用UDP广播发送消息，MessageType是指头文件中的枚举数据类型
 //sendMessage即把本机的主机名，用户名+消息内容+IP地址再广播出去
@@ -84,11 +86,10 @@ void Widget::sendMessage(MessageType type, QString serverAddress)
         break;
     case FileName:{
         int row = ui->tableWidget->currentRow();//必须选中需要发送的给谁才可以发送
-        QString clientAddress = ui->tableWidget->item(row,2)->text();//（row,,2）为ip地址
+        QString clientAddress = ui->tableWidget->item(row,2)->text();//（row,2）为ip地址
         out << address << clientAddress << fileName;//发送本地ip，对方ip，所发送的文件名
         break;
     }
-
     case Refuse:
         out << serverAddress;
         break;
@@ -110,7 +111,6 @@ void Widget::processPendingDatagrams()
         in>>messageType;//读取1个32位长度的整型数据到messageType中
         QString userName,localHostName,ipAddress,message;
         QString time=QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
-
         switch (messageType) {
         case Message:
             in>>userName>>localHostName>>ipAddress>>message;//in>>后面如果为QString，则表示读取一个直到‘\0’的字符串
@@ -126,22 +126,19 @@ void Widget::processPendingDatagrams()
         case ParticipantLeft:
             in>>userName>>localHostName;
             participantLeft(userName,localHostName,time);
-
             break;
         case FileName:{
             in >> userName >> localHostName >> ipAddress;
             QString clientAddress, fileName;
             in >> clientAddress >> fileName;
-            hasPendingFile(userName, ipAddress, clientAddress, fileName);//判断是否要接受该文件
+            hasPendingFile(userName, ipAddress, clientAddress, fileName);//判断是否要接受该文件，而且是否是广播给它的
             break;
         }
-
         case Refuse:{
             in >> userName >> localHostName;
             QString serverAddress;
             in >> serverAddress;
             QString ipAddress = getIP();
-
             if(ipAddress == serverAddress)
             {
                 server->refused();
@@ -153,7 +150,6 @@ void Widget::processPendingDatagrams()
             showxchat(localHostName,ipAddress);//显示与主机名聊天中，不是用户名
             break;
         }
-
         }
 
     }
@@ -194,7 +190,6 @@ void Widget::participantLeft(QString userName, QString localHostName, QString ti
     ui->textBrowser->setTextColor(Qt::gray);
     ui->textBrowser->setCurrentFont(QFont("Times New Roman",10));
     ui->textBrowser->append(tr("%1于%2离开！").arg(userName).arg(time));
-    //ui->textBrowser->setText(tr("在线人数:%1").arg(ui->tableWidget->rowCount()));
     ui->label_num->setText(tr("在线人数:%1").arg(ui->tableWidget->rowCount()));
 }
 //获取ip地址，获取本机ip地址（其协议为ipv4的ip地址）
@@ -265,21 +260,20 @@ void Widget::on_toolButton_sendfile_clicked()
             return;
         }
         server->show();
-        server->initServer();
-
+       server->initServer();
 }
 // 是否接收文件，客户端的显示
 void Widget::hasPendingFile(QString userName, QString serverAddress,
                             QString clientAddress, QString fileName)
 {
     QString ipAddress = getIP();
-    if(ipAddress == clientAddress)
+    if(ipAddress == clientAddress)//传过来的客户端IP地址和本地相同，说明这个就是它要传的客户端
     {
         int btn = QMessageBox::information(this,tr("接受文件"),
                                            tr("来自%1(%2)的文件：%3,是否接收？")
                                            .arg(userName).arg(serverAddress).arg(fileName),
                                            QMessageBox::Yes,QMessageBox::No);//弹出一个窗口
-        if (btn == QMessageBox::Yes) {
+        if (btn == QMessageBox::Yes) {//如果接受，则首先创建一个TCP客户端，然后双方进行一个TCP连接进行文件的传输
             QString name = QFileDialog::getSaveFileName(0,tr("保存文件"),fileName);//name为另存为的文件名
             if(!name.isEmpty())
             {
@@ -289,7 +283,7 @@ void Widget::hasPendingFile(QString userName, QString serverAddress,
                 client->show();
             }
         } else {//如果拒绝接收，则发送拒绝消息的广播
-            sendMessage(Refuse, serverAddress);
+            sendMessage(Refuse, serverAddress);//serverAddress传过来其实是对方的IP地址
         }
     }
 }
@@ -424,11 +418,12 @@ void Widget::on_tableWidget_doubleClicked(const QModelIndex &index)//双击出�
         QMessageBox::warning(this,tr("警告"),tr("你不可以和自己聊天！！！"),QMessageBox::Ok);
     }
     else{
-        if(!privatechat)
-        {
-            privatechat=new chat(ui->tableWidget->item(index.row(),1)->text(),//接收主机名
+//        if(!privatechat)
+//        {
+           privatechat=new chat(ui->tableWidget->item(index.row(),1)->text(),//接收主机名
                                  ui->tableWidget->item(index.row(),2)->text());//接收用户IP
             QByteArray data;
+            MessageType xchat;
             QDataStream out(&data,QIODevice::WriteOnly);
             QString localHostName = QHostInfo::localHostName();
             QString address = getIP();
@@ -436,17 +431,26 @@ void Widget::on_tableWidget_doubleClicked(const QModelIndex &index)//双击出�
             udpSocket->writeDatagram(data,data.length(),QHostAddress(ui->tableWidget->item(index.row(),2)->text()), port);//特定的IP地址，而不是之前的广播
 
 
-            privatechat->show();
-            privatechat->is_opened = true;
+//            privatechat->show();
+//            privatechat->is_opened = true;
 
-        }
+       // }
     }
+    /*privatechat=new chat(ui->tableWidget->item(index.row(),1)->text(),//接收主机名
+                         ui->tableWidget->item(index.row(),2)->text());//接收用户IP
+    privatechat->show();*/
+    /*privatechat=new chat(this);
+    privatechat->show();*/
 }
 
 void Widget::showxchat(QString name, QString ip)
 {
-    if(!privatechat1)
-    {
-        privatechat1=new chat(name,ip);
-    }
+//    privatechat=new chat(ui->tableWidget->item(index.row(),1)->text(),//接收主机名
+//                         ui->tableWidget->item(index.row(),2)->text());//接收用户IP
+    privatechat->show();
+    privatechat->is_opened = true;
+//    if(!privatechat1)
+//    {
+//        privatechat1=new chat(name,ip);
+//    }
 }

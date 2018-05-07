@@ -10,7 +10,7 @@ class Widget;
 }
 
 class TcpServer;//定义那个自己定义的类
-enum MessageType //枚举变量标志信息的类型
+/*enum MessageType //枚举变量标志信息的类型
 {
     Message,//消息
     NewParticipant,//新用户加入
@@ -18,7 +18,8 @@ enum MessageType //枚举变量标志信息的类型
     FileName,//文件名
     Refuse,//拒绝接受文件
     xchat//私聊窗口
-};
+};*/
+//因为chat.h中也有这个定义，且这里也#include<chat.h>，会使得定义重复
 class Widget : public QWidget
 {
     Q_OBJECT
@@ -59,7 +60,7 @@ private slots:
     
     void on_toolButton_sendfile_clicked();//传送文件
 
-    void getFileName(QString);//来获取服务器类sendFileName()信号发送过来的文件名
+    void getFileName(QString name);//来获取服务器类sendFileName()信号发送过来的文件名
 
 
     void on_fontComboBox_currentFontChanged(const QFont &f);
@@ -91,7 +92,7 @@ private:
     QUdpSocket *udpSocket;
     qint16 port;
 
-    QString fileName;
+    QString fileName;//传过来的文件名
     TcpServer *server;
 
     QColor color;

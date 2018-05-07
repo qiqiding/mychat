@@ -34,13 +34,13 @@ private slots:
 
     void readMessage();//读取文件数据
 
-    void displayError(QAbstractSocket::SocketError);//显示错误信息
+    void displayError(QAbstractSocket::SocketError socketError);//显示错误信息
 
 private:
     Ui::TcpClient *ui;
     QTcpSocket *tcpClient;//客户端套接字类
     quint16 blockSize;
-    QHostAddress hostAddress;
+    QHostAddress hostAddress;//发送端IP地址
     qint16 tcpPort;
 
     qint64 TotalBytes;//需要接收的数据的总大小

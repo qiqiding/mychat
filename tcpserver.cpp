@@ -14,15 +14,14 @@ TcpServer::TcpServer(QWidget *parent) :
 {
     ui->setupUi(this);
     setWindowTitle(tr("发送"));
-    setFixedSize(350,180);    //初始化时窗口显示固定大小
+    //setFixedSize(350,180);    //初始化时窗口显示固定大小
 
      tcpPort = 6666;        //tcp通信端口
      tcpServer = new QTcpServer(this);
         //newConnection表示当tcp有新连接时就发送信号
      connect(tcpServer, SIGNAL(newConnection()), this, SLOT(sendMessage()));
-
+     //这里是指客户端那边创建了一个新TCP连接？？？
      initServer();
-
 }
 
 TcpServer::~TcpServer()
@@ -48,10 +47,11 @@ void TcpServer::initServer()
 // 开始发送数据
 void TcpServer::sendMessage()    //是connect中的槽函数
 {
+    QMessageBox::information(this,tr("test"),tr("你到了服务器端发送数据！"),QMessageBox::Ok);
     ui->serverSendBtn->setEnabled(false);    //当在传送文件的过程中，发送按钮不可用
     clientConnection = tcpServer->nextPendingConnection();    //用来获取一个已连接的TcpSocket
     //bytesWritten为qint64类型，即长整型
-    connect(clientConnection, SIGNAL(bytesWritten(qint64)),    //?
+    connect(clientConnection, SIGNAL(bytesWritten(qint64)),    //?？？是否有用
             this, SLOT(updateClientProgress(qint64)));
     ui->serverStatusLabel->setText(tr("开始传送文件 %1 ！").arg(theFileName));
     localFile = new QFile(fileName);    //localFile代表的是文件内容本身
@@ -61,8 +61,9 @@ void TcpServer::sendMessage()    //是connect中的槽函数
         return;
     }
     TotalBytes = localFile->size();//获取文件总大小
+    qDebug()<<"test"<<TotalBytes;
     QDataStream sendOut(&outBlock, QIODevice::WriteOnly);//设置输出流属性，将发送缓冲区outblock封装在一个QDataStream
-    sendOut.setVersion(QDataStream::Qt_5_5);//设置Qt版本，不同版本的数据流格式不同
+    sendOut.setVersion(QDataStream::Qt_4_7);//设置Qt版本，不同版本的数据流格式不同
     time.start();  // 开始计时
     QString currentFile = fileName.right(fileName.size()-fileName.lastIndexOf('/')-1);//通过QString类的right()函数去掉文件的路径部分
     //仅仅将文件部分保存在currentFile
@@ -131,9 +132,9 @@ void TcpServer::on_serverSendBtn_clicked()
 {
     //单击“发送”按钮后，将服务器设置为监听状态，然后发送sendFileName()信号，在主界面类中将关联该信号并使用UDP广播将文件名发送给接收端
     //tcpServer->listen函数如果监听到有连接，则返回1，否则返回0
-        if(!tcpServer->listen(QHostAddress::Any,tcpPort))//开始监听6666端口
+        if(!tcpServer->listen(QHostAddress::Any,tcpPort))//开始监听任何连在6666端口的IP地址
         {
-            qDebug() << tcpServer->errorString();//此处的errorString是指？
+            qDebug() << tcpServer->errorString();
             close();
             return;
         }
@@ -141,7 +142,7 @@ void TcpServer::on_serverSendBtn_clicked()
         ui->serverStatusLabel->setText(tr("等待对方接收... ..."));
         emit sendFileName(theFileName);//发送已传送文件的信号，在widget.cpp构造函数中的connect()触发槽函数
 }
-//关闭按钮，服务器的关闭按钮
+//关闭按钮，先关闭服务器再关闭对话框
 void TcpServer::on_serverCloseBtn_clicked()
 {
     if(tcpServer->isListening())//当tcp正在监听时，关闭tcp服务器端应用，即按下close键时就不监听tcp请求了

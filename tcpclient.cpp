@@ -14,8 +14,8 @@ TcpClient::TcpClient(QWidget *parent) :
 
     tcpClient = new QTcpSocket(this);
     tcpPort = 6666;
-    connect(tcpClient, SIGNAL(readyRead()), this, SLOT(readMessage()));
-    connect(tcpClient, SIGNAL(error(QAbstractSocket::SocketError)), this,
+    connect(tcpClient,SIGNAL(readyRead()),this,SLOT(readMessage()));
+    connect(tcpClient,SIGNAL(error(QAbstractSocket::SocketError)), this,
                 SLOT(displayError(QAbstractSocket::SocketError)));
 
 }
@@ -30,7 +30,7 @@ void TcpClient::setFileName(QString fileName)
     localFile = new QFile(fileName);
 }
 
-// 设置地址
+// 获取发送端IP地址
 void TcpClient::setHostAddress(QHostAddress address)
 {
     hostAddress = address;
@@ -49,8 +49,9 @@ void TcpClient::newConnect()
 // 读取数据
 void TcpClient::readMessage()
 {
+    QMessageBox::information(this,tr("test"),tr("你到了客户端读取数据！"),QMessageBox::Ok);
     QDataStream in(tcpClient);    //这里的QDataStream可以直接用QTcpSocket对象做参数
-    in.setVersion(QDataStream::Qt_5_5);
+    in.setVersion(QDataStream::Qt_4_7);
 
     float useTime = time.elapsed();
 
