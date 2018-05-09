@@ -1,6 +1,5 @@
 #include "tcpserver.h"
 #include "ui_tcpserver.h"
-
 #include <QFile>
 #include <QTcpServer>
 #include <QTcpSocket>
@@ -13,15 +12,17 @@ TcpServer::TcpServer(QWidget *parent) :
     ui(new Ui::TcpServer)
 {
     ui->setupUi(this);
-    setWindowTitle(tr("发送"));
-    //setFixedSize(350,180);    //初始化时窗口显示固定大小
-
-     tcpPort = 6666;        //tcp通信端口
-     tcpServer = new QTcpServer(this);
-        //newConnection表示当tcp有新连接时就发送信号
-     connect(tcpServer, SIGNAL(newConnection()), this, SLOT(sendMessage()));
-     //这里是指客户端那边创建了一个新TCP连接？？？
-     initServer();
+    setWindowTitle(tr("发送文件"));
+    ui->serverStatusLabel->hide();//设置该标签隐藏
+    //设置窗口有最大最小化按钮
+    Qt::WindowFlags flags=Qt::Dialog;
+    flags |=Qt::WindowMinMaxButtonsHint;
+    flags |=Qt::WindowCloseButtonHint;
+    setWindowFlags(flags);
+    tcpPort = 6666;        //tcp通信端口
+    tcpServer = new QTcpServer(this);
+    connect(tcpServer,&QTcpServer::newConnection,this,&TcpServer::sendMessage);//一旦有客户端连接到服务器，则发射newConnection信号
+    initServer();
 }
 
 TcpServer::~TcpServer()
@@ -34,25 +35,19 @@ void TcpServer::initServer()
     payloadSize = 64*1024;//64KB
     TotalBytes = 0;
     bytesWritten = 0;
-    bytesToWrite = 0;
-
-    ui->serverStatusLabel->setText(tr("请选择要传送的文件"));
+    bytesToWrite = 0;    
     ui->progressBar->reset();//进度条复位
     ui->serverOpenBtn->setEnabled(true);//open按钮可用
     ui->serverSendBtn->setEnabled(false);//发送按钮不可用
-
     tcpServer->close();//关闭服务器
 }
 
 // 开始发送数据
 void TcpServer::sendMessage()    //是connect中的槽函数
-{
-    QMessageBox::information(this,tr("test"),tr("你到了服务器端发送数据！"),QMessageBox::Ok);
+{   
     ui->serverSendBtn->setEnabled(false);    //当在传送文件的过程中，发送按钮不可用
-    clientConnection = tcpServer->nextPendingConnection();    //用来获取一个已连接的TcpSocket
-    //bytesWritten为qint64类型，即长整型
-    connect(clientConnection, SIGNAL(bytesWritten(qint64)),    //?？？是否有用
-            this, SLOT(updateClientProgress(qint64)));
+    clientConnection = tcpServer->nextPendingConnection();    //用来获取一个已连接的TcpSocket  
+    connect(clientConnection, SIGNAL(bytesWritten(qint64)),this, SLOT(updateClientProgress(qint64)));
     ui->serverStatusLabel->setText(tr("开始传送文件 %1 ！").arg(theFileName));
     localFile = new QFile(fileName);    //localFile代表的是文件内容本身
     if(!localFile->open((QFile::ReadOnly)))//以只读的方式打开文件
@@ -61,14 +56,12 @@ void TcpServer::sendMessage()    //是connect中的槽函数
         return;
     }
     TotalBytes = localFile->size();//获取文件总大小
-    qDebug()<<"test"<<TotalBytes;
     QDataStream sendOut(&outBlock, QIODevice::WriteOnly);//设置输出流属性，将发送缓冲区outblock封装在一个QDataStream
     sendOut.setVersion(QDataStream::Qt_4_7);//设置Qt版本，不同版本的数据流格式不同
     time.start();  // 开始计时
     QString currentFile = fileName.right(fileName.size()-fileName.lastIndexOf('/')-1);//通过QString类的right()函数去掉文件的路径部分
     //仅仅将文件部分保存在currentFile
-    //qint64(0)表示将0转换成qint64类型,与(qint64)0等价
-    //如果是，则此处为依次写入总大小信息空间，文件名大小信息空间，文件名
+    //如果是，则此处为依次写入总大小信息空间（先占位），文件名大小信息空间，文件名
     sendOut << qint64(0) << qint64(0) << currentFile;
     TotalBytes += outBlock.size();//文件名大小等信息+实际文件大小
     sendOut.device()->seek(0);//将读写操作指向从头开始
@@ -94,7 +87,6 @@ void TcpServer::updateClientProgress(qint64 numBytes)
     }
     ui->progressBar->setMaximum(TotalBytes);//进度条的最大值为所发送信息的所有长度(包括附加信息)
     ui->progressBar->setValue(bytesWritten);//进度条显示的进度长度为bytesWritten实时的长度
-
     float useTime = time.elapsed();//从time.start()还是到当前所用的时间记录在useTime中
     double speed = bytesWritten / useTime;
     ui->serverStatusLabel->setText(tr("已发送 %1MB (%2MB/s) "
@@ -104,7 +96,6 @@ void TcpServer::updateClientProgress(qint64 numBytes)
                    .arg(TotalBytes / (1024 * 1024))
                    .arg(useTime/1000, 0, 'f', 0)    //0，‘f’,0是什么意思啊？
                    .arg(TotalBytes/speed/1000 - useTime/1000, 0, 'f', 0));
-
     if(bytesWritten == TotalBytes) {    //当需发送文件的总长度等于已发送长度时，表示发送完毕！
         localFile->close();
         tcpServer->close();
@@ -135,13 +126,11 @@ void TcpServer::on_serverSendBtn_clicked()
         if(!tcpServer->listen(QHostAddress::Any,tcpPort))//开始监听任何连在6666端口的IP地址
         {
             qDebug() << tcpServer->errorString();
-            close();
-            return;
-        }
-
-        ui->serverStatusLabel->setText(tr("等待对方接收... ..."));
+            close();           
+        }       
         emit sendFileName(theFileName);//发送已传送文件的信号，在widget.cpp构造函数中的connect()触发槽函数
 }
+
 //关闭按钮，先关闭服务器再关闭对话框
 void TcpServer::on_serverCloseBtn_clicked()
 {
@@ -166,4 +155,13 @@ void TcpServer::refused()
 void TcpServer::closeEvent(QCloseEvent *)
 {
     on_serverCloseBtn_clicked();
+}
+
+void TcpServer::on_pushButton_toggled(bool checked)//显示详细信息
+{
+    ui->serverStatusLabel->setVisible(checked);
+    if(checked)
+        ui->pushButton->setText(tr("隐藏信息"));
+    else
+        ui->pushButton->setText(tr("详细信息"));
 }

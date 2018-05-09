@@ -18,6 +18,7 @@
 #include<QFont>
 #include<QKeyEvent>
 #include<chat.h>
+#include<QHostAddress>
 Widget::Widget(QWidget *parent) :
     QWidget(parent),
     ui(new Ui::Widget)
@@ -195,17 +196,21 @@ void Widget::participantLeft(QString userName, QString localHostName, QString ti
 //获取ip地址，获取本机ip地址（其协议为ipv4的ip地址）
 QString Widget::getIP()
 {
-    QList<QHostAddress> list=QNetworkInterface::allAddresses();//此处包含所有的ipv4和ipv6的地址
-    foreach(QHostAddress address,list)
+    QString localHostName = QHostInfo::localHostName();   
+    //获取IP地址
+    QHostInfo info = QHostInfo::fromName(localHostName);
+    foreach(QHostAddress address, info.addresses())
     {
-        if(address.protocol()==QAbstractSocket::IPv4Protocol)
+        if (address.protocol() == QAbstractSocket::IPv4Protocol)
+        {
+            qDebug() << "IPv4 Address:" << address.toString();
             return address.toString();
+        }
     }
-    return 0;
 }
 
 
-//获取用户名????
+//获取用户名
 QString Widget::getUserName()
 {
     QStringList envVariables;
@@ -236,7 +241,6 @@ QString Widget::getMessage()
     ui->textEdit->clear();//清空输入框
     ui->textEdit->setFocus();//重新设置光标输入焦点
     return msg;
-
 }
 
 //发送信息
@@ -244,13 +248,16 @@ void Widget::on_pushButton_send_clicked()
 {
     sendMessage(Message);
 }
+
 // 获取要发送的文件名
+
 void Widget::getFileName(QString name)
 {
     fileName = name;
     sendMessage(FileName);
 }
 //传输文件按钮
+
 void Widget::on_toolButton_sendfile_clicked()
 {
     if(ui->tableWidget->selectedItems().isEmpty())//传送文件前需选择用户
@@ -280,6 +287,7 @@ void Widget::hasPendingFile(QString userName, QString serverAddress,
                 TcpClient *client = new TcpClient(this);
                 client->setFileName(name);    //客户端设置文件名
                 client->setHostAddress(QHostAddress(serverAddress));    //客户端设置服务器地址
+                qDebug()<<"zai"<<serverAddress;
                 client->show();
             }
         } else {//如果拒绝接收，则发送拒绝消息的广播
@@ -412,14 +420,14 @@ void Widget::closeEvent(QCloseEvent *e)
 void Widget::on_tableWidget_doubleClicked(const QModelIndex &index)//双击出现私聊窗口
 {
 
-   if(ui->tableWidget->item(index.row(),0)->text()==getUserName() &&
-            ui->tableWidget->item(index.row(),2)->text()==getIP())
-    {
-        QMessageBox::warning(this,tr("警告"),tr("你不可以和自己聊天！！！"),QMessageBox::Ok);
-    }
-    else{
-//        if(!privatechat)
-//        {
+//   if(ui->tableWidget->item(index.row(),0)->text()==getUserName() &&
+//            ui->tableWidget->item(index.row(),2)->text()==getIP())
+//    {
+//        QMessageBox::warning(this,tr("警告"),tr("你不可以和自己聊天！！！"),QMessageBox::Ok);
+//    }
+//    else{
+        if(!privatechat)
+        {
            privatechat=new chat(ui->tableWidget->item(index.row(),1)->text(),//接收主机名
                                  ui->tableWidget->item(index.row(),2)->text());//接收用户IP
             QByteArray data;
@@ -431,11 +439,11 @@ void Widget::on_tableWidget_doubleClicked(const QModelIndex &index)//双击出�
             udpSocket->writeDatagram(data,data.length(),QHostAddress(ui->tableWidget->item(index.row(),2)->text()), port);//特定的IP地址，而不是之前的广播
 
 
-//            privatechat->show();
-//            privatechat->is_opened = true;
+            privatechat->show();
+            privatechat->is_opened = true;
 
-       // }
-    }
+        }
+    //}
     /*privatechat=new chat(ui->tableWidget->item(index.row(),1)->text(),//接收主机名
                          ui->tableWidget->item(index.row(),2)->text());//接收用户IP
     privatechat->show();*/
@@ -449,8 +457,8 @@ void Widget::showxchat(QString name, QString ip)
 //                         ui->tableWidget->item(index.row(),2)->text());//接收用户IP
     privatechat->show();
     privatechat->is_opened = true;
-//    if(!privatechat1)
-//    {
-//        privatechat1=new chat(name,ip);
-//    }
+    if(!privatechat1)
+    {
+        privatechat1=new chat(name,ip);
+    }
 }

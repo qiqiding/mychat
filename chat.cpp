@@ -10,6 +10,7 @@
 #include<QProcess>
 #include<QNetworkInterface>
 #include<QScrollBar>
+#include<QHostAddress>
 chat::chat(QWidget *parent) :
     QDialog(parent),
     ui(new Ui::chat)

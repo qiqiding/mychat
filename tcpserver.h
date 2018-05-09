@@ -35,6 +35,8 @@ private slots:
 
     void updateClientProgress(qint64 numBytes);//更新进度条
 
+    void on_pushButton_toggled(bool checked);
+
 signals:
     void sendFileName(QString fileName);
 
