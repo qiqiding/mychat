@@ -37,6 +37,8 @@ private slots:
 
     void on_pushButton_toggled(bool checked);
 
+    void on_pushButton_2_clicked();
+
 signals:
     void sendFileName(QString fileName);
 

@@ -36,6 +36,8 @@ private slots:
 
     void on_pushButton_toggled(bool checked);
 
+    void on_pushButton_2_clicked();
+
 private:
     Ui::TcpClient *ui;
     QTcpSocket *tcpClientSocket;//客户端套接字类

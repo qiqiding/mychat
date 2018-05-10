@@ -28,8 +28,8 @@ Widget::Widget(QWidget *parent) :
     ui->textBrowser->setFocusPolicy(Qt::NoFocus);
     ui->textEdit->setFocus();
     ui->textEdit->installEventFilter(this);//设置完后自动调用其eventFilter函数
-
     ui->tableWidget->setEditTriggers(QAbstractItemView::NoEditTriggers);//设置tablewidget不可以编辑
+    setWindowTitle(tr("群聊窗口"));
 
     //UDP部分
     udpSocket=new QUdpSocket(this);
@@ -202,13 +202,11 @@ QString Widget::getIP()
     foreach(QHostAddress address, info.addresses())
     {
         if (address.protocol() == QAbstractSocket::IPv4Protocol)
-        {
-            qDebug() << "IPv4 Address:" << address.toString();
+        {          
             return address.toString();
         }
     }
 }
-
 
 //获取用户名
 QString Widget::getUserName()
@@ -234,6 +232,7 @@ QString Widget::getUserName()
     }
     return "unknown";
 }
+
 //获得,要发送的消息，放在socket中发出去
 QString Widget::getMessage()
 {
@@ -250,14 +249,13 @@ void Widget::on_pushButton_send_clicked()
 }
 
 // 获取要发送的文件名
-
 void Widget::getFileName(QString name)
 {
     fileName = name;
     sendMessage(FileName);
 }
-//传输文件按钮
 
+//传输文件按钮
 void Widget::on_toolButton_sendfile_clicked()
 {
     if(ui->tableWidget->selectedItems().isEmpty())//传送文件前需选择用户
@@ -269,6 +267,7 @@ void Widget::on_toolButton_sendfile_clicked()
         server->show();
        server->initServer();
 }
+
 // 是否接收文件，客户端的显示
 void Widget::hasPendingFile(QString userName, QString serverAddress,
                             QString clientAddress, QString fileName)
@@ -295,6 +294,7 @@ void Widget::hasPendingFile(QString userName, QString serverAddress,
         }
     }
 }
+
 bool Widget::eventFilter(QObject *target, QEvent *event)
 {
     if(target==ui->textEdit)
@@ -311,7 +311,6 @@ bool Widget::eventFilter(QObject *target, QEvent *event)
     }
     return QWidget::eventFilter(target,event);
 }
-
 
 //改变字体
 void Widget::on_fontComboBox_currentFontChanged(const QFont &f)
@@ -420,45 +419,38 @@ void Widget::closeEvent(QCloseEvent *e)
 void Widget::on_tableWidget_doubleClicked(const QModelIndex &index)//双击出现私聊窗口
 {
 
-//   if(ui->tableWidget->item(index.row(),0)->text()==getUserName() &&
-//            ui->tableWidget->item(index.row(),2)->text()==getIP())
-//    {
-//        QMessageBox::warning(this,tr("警告"),tr("你不可以和自己聊天！！！"),QMessageBox::Ok);
-//    }
-//    else{
-        if(!privatechat)
-        {
+   if(ui->tableWidget->item(index.row(),0)->text()==getUserName() &&
+            ui->tableWidget->item(index.row(),2)->text()==getIP())
+    {
+        QMessageBox::warning(this,tr("警告"),tr("你不可以和自己聊天！！！"),QMessageBox::Ok);
+    }
+    else{
            privatechat=new chat(ui->tableWidget->item(index.row(),1)->text(),//接收主机名
                                  ui->tableWidget->item(index.row(),2)->text());//接收用户IP
             QByteArray data;
-            MessageType xchat;
+            //MessageType xchat;
             QDataStream out(&data,QIODevice::WriteOnly);
             QString localHostName = QHostInfo::localHostName();
             QString address = getIP();
+            //xchat不用定义，直接使用
             out << xchat << getUserName() << localHostName << address;//输入type=xchat
             udpSocket->writeDatagram(data,data.length(),QHostAddress(ui->tableWidget->item(index.row(),2)->text()), port);//特定的IP地址，而不是之前的广播
 
 
             privatechat->show();
-            privatechat->is_opened = true;
-
-        }
-    //}
-    /*privatechat=new chat(ui->tableWidget->item(index.row(),1)->text(),//接收主机名
-                         ui->tableWidget->item(index.row(),2)->text());//接收用户IP
-    privatechat->show();*/
-    /*privatechat=new chat(this);
-    privatechat->show();*/
+           //privatechat->is_opened = true;
+       }
 }
 
 void Widget::showxchat(QString name, QString ip)
 {
 //    privatechat=new chat(ui->tableWidget->item(index.row(),1)->text(),//接收主机名
 //                         ui->tableWidget->item(index.row(),2)->text());//接收用户IP
-    privatechat->show();
-    privatechat->is_opened = true;
-    if(!privatechat1)
-    {
+//    privatechat->show();
+//    privatechat->is_opened = true;
+//    if(!privatechat1)
+//    {
         privatechat1=new chat(name,ip);
-    }
+        privatechat1->show();
+   // }
 }

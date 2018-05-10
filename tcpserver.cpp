@@ -165,3 +165,8 @@ void TcpServer::on_pushButton_toggled(bool checked)//显示详细信息
     else
         ui->pushButton->setText(tr("详细信息"));
 }
+
+void TcpServer::on_pushButton_2_clicked()
+{
+    on_serverCloseBtn_clicked();
+}

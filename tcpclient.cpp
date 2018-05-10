@@ -139,3 +139,8 @@ void TcpClient::on_pushButton_toggled(bool checked)//详细信息
     else
         ui->pushButton->setText(tr("详细信息"));
 }
+
+void TcpClient::on_pushButton_2_clicked()
+{
+    on_tcpClientCancleBtn_clicked();
+}

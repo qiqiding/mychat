@@ -13,6 +13,10 @@
   <property name="windowTitle">
    <string>Widget</string>
   </property>
+  <property name="windowIcon">
+   <iconset resource="image/image.qrc">
+    <normaloff>:/two.PNG</normaloff>:/two.PNG</iconset>
+  </property>
   <layout class="QGridLayout" name="gridLayout">
    <item row="0" column="0">
     <widget class="QTextBrowser" name="textBrowser"/>
@@ -27,7 +31,7 @@
        <string>用户名</string>
       </property>
       <property name="icon">
-       <iconset resource="image/image.qrc">
+       <iconset>
         <normaloff>:/User.png</normaloff>:/User.png</iconset>
       </property>
      </column>

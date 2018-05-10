@@ -33,7 +33,7 @@ public:
     qint32 xport;
     void sendMessage(MessageType type,QString serverAddress="");
 
-    bool is_opened;
+  //  bool is_opened;
 protected:
     bool eventFilter(QObject *target, QEvent *event);//事件过滤器（用来textedit的enter）
 
@@ -60,7 +60,6 @@ private slots:
     void on_send_clicked();
     void on_fontComboBox_currentFontChanged(const QFont &f);
     void on_fontsizecomboBox_currentIndexChanged(const QString &arg1);
-
     void on_textbold_clicked(bool checked);
     void on_textitalic_clicked(bool checked);
     void on_save_clicked();
@@ -70,6 +69,7 @@ private slots:
     void on_close_clicked();
     void on_sendfile_clicked();
     void currentFormatChanged(const QTextCharFormat &format);
+    //void on_textUnderline_clicked();
 };
 
 #endif // CHAT_H

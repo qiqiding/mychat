@@ -16,5 +16,7 @@
         <file>textitalic.png</file>
         <file>textunder.png</file>
         <file>User.png</file>
+        <file>one.PNG</file>
+        <file>two.PNG</file>
     </qresource>
 </RCC>
