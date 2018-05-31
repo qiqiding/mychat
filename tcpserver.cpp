@@ -106,7 +106,6 @@ void TcpServer::updateClientProgress(qint64 numBytes)
 //打开按钮
 void TcpServer::on_serverOpenBtn_clicked()
 {
-    //QString fileName;QFileDialog是一个提供给用户选择文件或目录的对话框
         fileName = QFileDialog::getOpenFileName(this);    //filename为所选择的文件名(包含了路径名)
         if(!fileName.isEmpty())
         {

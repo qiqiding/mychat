@@ -62,9 +62,8 @@ Widget::~Widget()
 //sendMessage即把本机的主机名，用户名+消息内容+IP地址再广播出去
 void Widget::sendMessage(MessageType type, QString serverAddress)
 {
-    QByteArray data;//字节数组
+    QByteArray data;
     QDataStream out(&data,QIODevice::WriteOnly);//QDataStream是将序列化的二进制数据送到io设备，
-    //因为其属性为只写
     QString localHostName=QHostInfo::localHostName();
     QString address=getIP();//调用自己类中的getIP函数
     out<<type<<getUserName()<<localHostName;
@@ -264,7 +263,7 @@ void Widget::on_toolButton_sendfile_clicked()
                            tr("请先从用户列表选择要传送的用户！"), QMessageBox::Ok);
             return;
         }
-        server->show();
+       server->show();
        server->initServer();
 }
 
@@ -369,7 +368,6 @@ void Widget::curFmtChanged(const QTextCharFormat &fmt)
     ui->toolButton_italic->setChecked(fmt.font().italic());//设置斜体
     ui->toolButton_underline->setChecked(fmt.font().underline());//设置下划线
     color=fmt.foreground().color();
-
 }
 //单击保存按钮
 void Widget::on_toolButton_save_clicked()
@@ -428,29 +426,17 @@ void Widget::on_tableWidget_doubleClicked(const QModelIndex &index)//双击出�
            privatechat=new chat(ui->tableWidget->item(index.row(),1)->text(),//接收主机名
                                  ui->tableWidget->item(index.row(),2)->text());//接收用户IP
             QByteArray data;
-            //MessageType xchat;
             QDataStream out(&data,QIODevice::WriteOnly);
             QString localHostName = QHostInfo::localHostName();
             QString address = getIP();
-            //xchat不用定义，直接使用
             out << xchat << getUserName() << localHostName << address;//输入type=xchat
             udpSocket->writeDatagram(data,data.length(),QHostAddress(ui->tableWidget->item(index.row(),2)->text()), port);//特定的IP地址，而不是之前的广播
-
-
             privatechat->show();
-           //privatechat->is_opened = true;
        }
 }
 
 void Widget::showxchat(QString name, QString ip)
 {
-//    privatechat=new chat(ui->tableWidget->item(index.row(),1)->text(),//接收主机名
-//                         ui->tableWidget->item(index.row(),2)->text());//接收用户IP
-//    privatechat->show();
-//    privatechat->is_opened = true;
-//    if(!privatechat1)
-//    {
         privatechat1=new chat(name,ip);
         privatechat1->show();
-   // }
 }
